@@ -56,6 +56,24 @@ if (reading> 4000)
 {
   Serial.println("fbrgbled g tb 1 2 3 4");
 }
+Serial.println("vbat");
+int incomingByte = 0; 
+char inData[1000]; // Allocate some space for the string
+int index = 0;
+while (Serial.available() > 0) {
+  if (index <1000){
+        // read the incoming byte:
+        char incomingByte = Serial.read();
+        inData[index] = incomingByte;
+        index++;
+        inData[index] = '\0'; //null terminate string
+        // say what you got:
+
+  }
+}
+Serial.print("I received: ");
+Serial.println(inData);
+
 //if reading
 //Serial.println("fbrgbled rb tb 1 2 3 4");
 //digitalWrite(ESP8266_LED, HIGH);

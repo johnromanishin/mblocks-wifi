@@ -1,6 +1,6 @@
-
 #include <ros.h>
-#include <std_msgs/Empty.h>
+#include <std_msgs/String.h>
+#include <std_msgs/Int32.h>
 
 #include <ESP8266WiFi.h>
 #include <Wire.h>
@@ -21,8 +21,6 @@ const char WiFiPSK[] = "";
 
 ros::NodeHandle nh;
 
-int blink = 0;
-
 void messageCb(const std_msgs::String& cmd_msg) {
   String ss = cmd_msg.data;
   
@@ -31,7 +29,7 @@ void messageCb(const std_msgs::String& cmd_msg) {
 
 std_msgs::Int32 mag_msg;
 ros::Publisher pub_mag("magnet", &mag_msg);
-ros::Subscriber<std_msgs::Empty> sub("send_cmd", &messageCb);
+ros::Subscriber<std_msgs::String> sub("send_cmd", &messageCb);
 
 void setupWiFi()
 {

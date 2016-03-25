@@ -49,6 +49,8 @@ void setup()
   Serial.begin(115200);
   Wire.begin();
 
+  setupWifi();
+
   // change this to connect to host name of computer
   nh.initNode();
   nh.subscribe(sub);

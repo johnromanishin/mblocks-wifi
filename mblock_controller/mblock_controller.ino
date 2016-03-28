@@ -24,7 +24,7 @@ ros::NodeHandle nh;
 void messageCb(const std_msgs::String& cmd_msg) {
   String ss = cmd_msg.data;
   
-  Serial.println(cmd_msg);
+  Serial.println(ss);
 }
 
 std_msgs::Int32 mag_msg;
@@ -49,7 +49,7 @@ void setup()
   Serial.begin(115200);
   Wire.begin();
 
-  setupWifi();
+  setupWiFi();
 
   // change this to connect to host name of computer
   nh.initNode();

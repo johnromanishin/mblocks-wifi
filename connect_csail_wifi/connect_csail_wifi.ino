@@ -23,8 +23,10 @@ const int DIGITAL_PIN = 12; // Digital pin to be read
 // Phant Keys //
 ////////////////
 const char PhantHost[] = "data.sparkfun.com";
-const char PublicKey[] = "wpvZ9pE1qbFJAjaGd3bn";
-const char PrivateKey[] = "wzeB1z0xWNt1YJX27xdg";
+const char PublicKey[] = "KJ7ZLKad2jIgDaOXNZpq";
+const char PrivateKey[] = "vzrPJ8wdomT1vB742wlJ";
+
+const int httpPort = 80;
 
 /////////////////
 // Post Timing //
@@ -46,15 +48,14 @@ void loop()
   if ((lastPost + postRate <= millis()) || lastPost == 0)
   {
     Serial.println("Posting to Phant!");
-    if (postToPhant())
+    if (getFromPhant())
     {
       lastPost = millis();
-      Serial.println("Post Suceeded!");
     }
     else // If the Phant post failed
     {
       delay(500); // Short delay, then try again
-      Serial.println("Post failed, will try again.");
+      Serial.println("GET failed. Will try again.");
     }
   }
 }
@@ -88,6 +89,7 @@ void connectWiFi()
     // Add delays -- allowing the processor to perform other
     // tasks -- wherever possible.
   }
+  
   Serial.println("WiFi connected");  
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
@@ -103,48 +105,31 @@ void initHardware()
   // that's all it can be.
 }
 
-int postToPhant()
+int getFromPhant()
 {
   // LED turns on when we enter, it'll go off when we 
   // successfully post.
   digitalWrite(LED_PIN, LOW);
 
-  // Declare an object from the Phant library - phant
-  Phant phant(PhantHost, PublicKey, PrivateKey);
-
-  // Do a little work to get a unique-ish name. Append the
-  // last two bytes of the MAC (HEX'd) to "Thing-":
-  uint8_t mac[WL_MAC_ADDR_LENGTH];
-  WiFi.macAddress(mac);
-  String macID = String(mac[WL_MAC_ADDR_LENGTH - 2], HEX) +
-                 String(mac[WL_MAC_ADDR_LENGTH - 1], HEX);
-  macID.toUpperCase();
-  String postedID = "ThingDev-" + macID;
-
-  // Add the four field/value pairs defined by our stream:
-  phant.add("id", postedID);
-  phant.add("analog", analogRead(ANALOG_PIN));
-  phant.add("digital", 8); 
- // phant.add("digital", digitalRead(DIGITAL_PIN));
-  phant.add("time", millis());
-
-  // Now connect to data.sparkfun.com, and post our data:
   WiFiClient client;
-  const int httpPort = 80;
-  if (!client.connect(PhantHost, httpPort)) 
-  {
-    // If we fail to connect, return 0.
-    return 0;
+  if (!client.connect(PhantHost, httpPort)) {
+      return 0;
   }
-  // If we successfully connected, print our Phant post:
-  client.print(phant.post());
+  
+  client.print("GET /output/");
+  client.print(PublicKey);
+  client.print(".csv");
+  client.print("?limit=1");
+  client.println(" HTTP/1.1");
+  client.print("Host: ");
+  client.println(PhantHost);
+  client.println("Connection: close");
+  client.println();
 
-  // Read all the lines of the reply from server and print them to Serial
-  while(client.available()){
-    String line = client.readStringUntil('\r');
-    //Serial.print(line); // Trying to avoid using serial
+  while (client.available()) {
+      String line = client.readStringUntil('\r');
   }
-
+  
   // Before we exit, turn the LED off.
   digitalWrite(LED_PIN, HIGH);
 

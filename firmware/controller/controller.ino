@@ -8,7 +8,6 @@
 #include <ESP8266WiFi.h>
 #include <Wire.h>
 
-
 //////////////////////
 // Constants        //
 //////////////////////
@@ -17,6 +16,9 @@ const int ANALOG_PIN = A0;
 const int DIGITAL_PIN = 12;
 
 int magSensorAddress = 0x40;
+int prevMagReading = -1;
+
+bool cmd_ready = true;
 
 //////////////////////
 // WiFi Definitions //
@@ -32,18 +34,26 @@ IPAddress ip_address;
 //////////////////////
 ros::NodeHandle nh;
 
-void commandCb(const std_msgs::String& cmd_msg) {
+void commandIACb(const std_msgs::String& cmd_msg) {
+  String ss = cmd_msg.data;
+  
+  Serial.println(ss);
+}
+
+void commandCPCb(const std_msgs::String& cmd_msg) {
   String ss = cmd_msg.data;
   
   Serial.println(ss);
 }
 
 std_msgs::Int32 mag_msg;
-std_msgs::String chatter_msg;
+std_msgs::String serial_msg;
 
-ros::Publisher pub_mag("mag", &mag_msg);
-ros::Publisher pub_chatter("chatter", &chatter_msg);
-ros::Subscriber<std_msgs::String> sub_cmd("cmd_ia", &commandCb);
+ros::Publisher pub_mag("cube1/mag", &mag_msg);
+ros::Publisher pub_ser("cube1/serial", &serial_msg);
+
+ros::Subscriber<std_msgs::String> sub_cmd_ia("cube1/cmd_ia", &commandIACb);
+ros::Subscriber<std_msgs::String> sub_cmd_cp("cube1/cmd_cp", &commandCPCb);
 
 // Main program begins here
 void setupWiFi()
@@ -70,28 +80,35 @@ void setup()
 {
   Serial.begin(115200);
   Wire.begin();
-
   setupWiFi();
 
   delay(2000);
-  
-  // change this to connect to host name of computer
-  nh.initNode("192.168.0.100");
-  nh.subscribe(sub_cmd);
+
+  nh.initNode("192.168.0.103");
+  nh.subscribe(sub_cmd_ia);
+  nh.subscribe(sub_cmd_cp);
   nh.advertise(pub_mag);
-  nh.advertise(pub_chatter);
+  nh.advertise(pub_ser);
 }
 
+String ser_str;
 long publisher_timer;
 
 void loop()
 {
+  while (Serial.available() > 0) {
+    char c = Serial.read();
+    if (c != '\n') {
+      ser_str += String(c);
+    } else {
+      serial_msg.data = ser_str.c_str();
+      pub_ser.publish(&serial_msg);
+      ser_str = "";
+    }
+  }
+  
   if (millis() > publisher_timer) {
-    chatter_msg.data = "Hello World!";
-    pub_chatter.publish(&chatter_msg);
-
-    publishMagnet();
-    
+    publishMagnet();    
     publisher_timer = millis() + 50;
   }
   
@@ -99,19 +116,23 @@ void loop()
 }
 
 void publishMagnet() {
+  mag_msg.data = readMagnet();
+  pub_mag.publish(&mag_msg);
+}
+
+int readMagnet() {
   Wire.beginTransmission(0x40);
   Wire.write(byte(255));
   Wire.endTransmission();
-
   Wire.requestFrom(0x40, 2);
 
+  int reading = 0;
   if (2 <= Wire.available()) {
-    int reading = Wire.read();
+    reading = Wire.read();
     reading = reading << 6;
     reading |= Wire.read();
-
-    mag_msg.data = reading;
-    pub_mag.publish(&mag_msg);
   }
+
+  return reading;
 }
 

@@ -3,41 +3,43 @@
 import collections
 
 import rospy
-from std_msgs.msg import String, Int32
+from std_msgs.msg import String, Int32, Move
 
 NODE_NAME = 'move_control'
 
-class Move():
+class Mover():
     def __init__(self):
-        self.mag_q = deque()
-        
         rospy.init_node(NODE_NAME, anonymous=False)
 
-        self.cmd_ia = rospy.Publisher('cmd_ia', String, queue_size=1)
-        self.cmd_cp = rospy.Publisher('cmd_cp', String, queue_size=1)
+        self.cmd_ia = rospy.Publisher('cube1/cmd_ia', String, queue_size=1)
+        self.cmd_cp = rospy.Publisher('cube1/cmd_cp', String, queue_size=1)
 
-        self.mag_sub = rospy.Subscriber('mag', Int32, self.mag_callback)
+        self.ser_sub = rospy.Subscriber('cube1/serial', String, self.serial_callback)
+        self.mag_sub = rospy.Subscriber('cube1/mag', Int32, self.magnet_callback)
 
+        self.planner_sub = rospy.Subscriber('core/planner', Move, self.move_callback)
+        
         r = rospy.Rate(10)
         while not rospy.is_shutdown():
-            self.move()
             r.sleep()
 
-    def move(self):
-        fwd_cmd = 'ia f 6000 2500 20'
+    def move_callback(self, data):
+        cmd_str = moves[data.cube][data.type, data.direction]
+        if data.type == 'change_plane':
+            self.cmd_cp.publish(cmd_str)
+        else:
+            self.cmd_ia.publish(cmd_str)
 
-        if len(self.mag_q) >= 2:
-            p, q = self.mag_q.pop(), self.mag_q.pop()
-            if abs(p - q) < EPS:
-                self.mag_q.clear()
-                self.cmd_fwd.publish(fwd_cmd)
-            else:
-                self.mag_q.extend([p, q])
-            
-    def mag_callback(self, data):
-        if len(self.mag_q) >= 2:
-            self.mag_q.popleft()
-        self.mag_q.append(data.data)
-        
-if __name__ == '__main__':
-    Move()
+    def magnet_callback(self, data):
+        print 'Magnet reading: {}'.format(data.data)
+
+    def serial_callback(self, data):
+        print 'Serial callback: {}'.format(data.data)
+        if 'IA SUCCESS' in data.data:
+            pass
+        elif 'IA FAILURE' in data.data:
+            pass
+        elif 'CP SUCCESS' in data.data:
+            pass
+        elif 'CP FAILURE' in data.data:
+            pass

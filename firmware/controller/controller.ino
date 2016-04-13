@@ -89,6 +89,8 @@ void setup()
   nh.subscribe(sub_cmd_cp);
   nh.advertise(pub_mag);
   nh.advertise(pub_ser);
+
+  delay(1000);
 }
 
 String ser_str;

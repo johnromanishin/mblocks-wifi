@@ -33,7 +33,7 @@ class Mover():
 
     def status_callback(self, data):
         print 'Cube status:'
-        print 'Light readings: {}'.format(data.face1_light)
+        print 'Light readings: {}'.format(data.face_light)
         print 'Magnet sensor: {}'.format(data.magnet_sense)
 
     def serial_callback(self, data):

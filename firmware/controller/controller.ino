@@ -2,6 +2,7 @@
 
 #include <ros.h>
 
+#include <mblocks_wifi/Status.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Int32.h>
 
@@ -15,15 +16,10 @@ const int LED_PIN = 5;
 const int ANALOG_PIN = A0;
 const int DIGITAL_PIN = 12;
 
-int magSensorAddress = 0x40;
-int prevMagReading = -1;
-
-bool cmd_ready = true;
-
 //////////////////////
 // WiFi Definitions //
 //////////////////////
-const char WiFiSSID[] = "TP-LINK_9B88A0";  // change this to local connection
+const char WiFiSSID[] = "TP-LINK_9B88A0";
 const char WiFiPSK[] = "279B88A0";
 
 int status = WL_IDLE_STATUS;
@@ -34,26 +30,19 @@ IPAddress ip_address;
 //////////////////////
 ros::NodeHandle nh;
 
-void commandIACb(const std_msgs::String& cmd_msg) {
-  String ss = cmd_msg.data;
-  
-  Serial.println(ss);
-}
-
-void commandCPCb(const std_msgs::String& cmd_msg) {
-  String ss = cmd_msg.data;
-  
-  Serial.println(ss);
-}
-
-std_msgs::Int32 mag_msg;
+mblocks_wifi::Status status_msg;
 std_msgs::String serial_msg;
 
-ros::Publisher pub_mag("cube1/mag", &mag_msg);
-ros::Publisher pub_ser("cube1/serial", &serial_msg);
+ros::Publisher *pub_stat;
+ros::Publisher *pub_ser;
 
-ros::Subscriber<std_msgs::String> sub_cmd_ia("cube1/cmd_ia", &commandIACb);
-ros::Subscriber<std_msgs::String> sub_cmd_cp("cube1/cmd_cp", &commandCPCb);
+//////////////////////
+// Global variables //
+//////////////////////
+String mac_address;
+String ser_str;
+
+long publisher_timer;
 
 // Main program begins here
 void setupWiFi()
@@ -79,22 +68,24 @@ void setupWiFi()
 void setup() 
 {
   Serial.begin(115200);
-  Wire.begin();
+  Wire.begin(2, 14);
+
+  mac_address = readMacAddress();
   setupWiFi();
 
   delay(2000);
 
+  String pub_stat_name = mac_address + "/status";
+  String pub_ser_name = mac_address + "/serial";
+  pub_stat = new ros::Publisher(pub_stat_name, &status_msg);
+  pub_ser = new ros::Publisher(pub_ser_name, &serial_msg);
+
   nh.initNode("192.168.0.103");
-  nh.subscribe(sub_cmd_ia);
-  nh.subscribe(sub_cmd_cp);
-  nh.advertise(pub_mag);
-  nh.advertise(pub_ser);
+  nh.advertise(*pub_stat);
+  nh.advertise(*pub_ser);
 
   delay(1000);
 }
-
-String ser_str;
-long publisher_timer;
 
 void loop()
 {
@@ -104,22 +95,54 @@ void loop()
       ser_str += String(c);
     } else {
       serial_msg.data = ser_str.c_str();
-      pub_ser.publish(&serial_msg);
+      pub_ser->publish(&serial_msg);
       ser_str = "";
     }
   }
   
-  if (millis() > publisher_timer) {
-    publishMagnet();    
-    publisher_timer = millis() + 50;
+  if (millis() > publisher_timer) { 
+    publishStatus();    
+    publisher_timer = millis() + 1000;
   }
   
   nh.spinOnce();
 }
 
-void publishMagnet() {
-  mag_msg.data = readMagnet();
-  pub_mag.publish(&mag_msg);
+void publishStatus() {
+  status_msg.magnet_sense = readMagnet();
+  for (int i = 1; i <= 6; ++i) {
+    status_msg.face_light[i - 1] = readLightSensor(i);
+  }
+  pub_stat->publish(&status_msg);
+}
+
+String readMacAddress() {
+  Serial.println("blemac");
+  
+  while (Serial.available() < 12);
+
+  String mac;
+  for (int i = 0; i < 12; ++i) {
+    char c = Serial.read();
+    mac += String(c);
+  }
+
+  return mac;
+}
+
+int readLightSensor(int i) {
+  Wire.beginTransmission(byte(i));
+  Wire.write(0x10);
+  Wire.endTransmission();
+  Wire.requestFrom(i, 2);
+
+  int reading = 0;
+  if (2 <= Wire.available()) {
+    reading = Wire.read() << 2;
+    reading |= Wire.read() >> 6;
+  }
+
+  return reading;
 }
 
 int readMagnet() {
@@ -137,4 +160,3 @@ int readMagnet() {
 
   return reading;
 }
-

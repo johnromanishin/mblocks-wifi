@@ -43,10 +43,13 @@ String mac_address;
 String ser_str;
 
 long publisher_timer;
+long reset_timer;
 
 // Main program begins here
-void setupWiFi()
+void setup() 
 {
+  Serial.begin(115200);
+
   WiFi.mode(WIFI_STA);
 
   while (status != WL_CONNECTED) {
@@ -54,7 +57,7 @@ void setupWiFi()
     Serial.println(WiFiSSID);
     status = WiFi.begin(WiFiSSID, WiFiPSK);
 
-    delay(1000);
+    delay(5000);
   }
   
   Serial.print("Connected to WiFi: ");
@@ -63,43 +66,23 @@ void setupWiFi()
   ip_address = WiFi.localIP();
   Serial.print("IP Address: ");
   Serial.println(ip_address);
-}
 
-void setup() 
-{
-  Serial.begin(115200);
+  delay(1000);
+  
   Wire.begin(2, 14);
 
-  mac_address = readMacAddress();
-  setupWiFi();
-
-  delay(2000);
-
-  String pub_stat_name = mac_address + "/status";
-  String pub_ser_name = mac_address + "/serial";
-  pub_stat = new ros::Publisher(pub_stat_name, &status_msg);
-  pub_ser = new ros::Publisher(pub_ser_name, &serial_msg);
+  delay(1000);
+  
+  pub_stat = new ros::Publisher("cube1/status", &status_msg);
+  pub_ser = new ros::Publisher("cube1/serial", &serial_msg);
 
   nh.initNode("192.168.0.103");
   nh.advertise(*pub_stat);
   nh.advertise(*pub_ser);
-
-  delay(1000);
 }
 
 void loop()
 {
-  while (Serial.available() > 0) {
-    char c = Serial.read();
-    if (c != '\n') {
-      ser_str += String(c);
-    } else {
-      serial_msg.data = ser_str.c_str();
-      pub_ser->publish(&serial_msg);
-      ser_str = "";
-    }
-  }
-  
   if (millis() > publisher_timer) { 
     publishStatus();    
     publisher_timer = millis() + 1000;
@@ -116,20 +99,6 @@ void publishStatus() {
   pub_stat->publish(&status_msg);
 }
 
-String readMacAddress() {
-  Serial.println("blemac");
-  
-  while (Serial.available() < 12);
-
-  String mac;
-  for (int i = 0; i < 12; ++i) {
-    char c = Serial.read();
-    mac += String(c);
-  }
-
-  return mac;
-}
-
 int readLightSensor(int i) {
   Wire.beginTransmission(byte(i));
   Wire.write(0x10);
@@ -137,12 +106,15 @@ int readLightSensor(int i) {
   Wire.requestFrom(i, 2);
 
   int reading = 0;
+  int reading1 = 0;
   if (2 <= Wire.available()) {
-    reading = Wire.read() << 2;
-    reading |= Wire.read() >> 6;
+    reading = Wire.read();
+    reading = reading << 2;
+    reading1 = Wire.read();
+    reading1 = reading1 >> 6;
   }
 
-  return reading;
+  return reading | reading1;
 }
 
 int readMagnet() {
@@ -160,3 +132,5 @@ int readMagnet() {
 
   return reading;
 }
+
+

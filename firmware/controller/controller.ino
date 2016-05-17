@@ -1,5 +1,7 @@
+
 #define USE_WIFICON
 
+#include <ArduinoHardware.h>
 #include <ros.h>
 
 #include <mblocks_wifi/Status.h>
@@ -19,8 +21,10 @@ const int DIGITAL_PIN = 12;
 //////////////////////
 // WiFi Definitions //
 //////////////////////
-const char WiFiSSID[] = "TP-LINK_9B88A0";
-const char WiFiPSK[] = "279B88A0";
+//const char WiFiSSID[] = "TP-LINK_9B88A0"; // Sebastian's router
+//const char WiFiPSK[] = "279B88A0";// Sebastian's router
+const char WiFiSSID[] = "TP-LINK_9B7022"; // My Router
+const char WiFiPSK[] = "279B7022"; // My Router
 
 int status = WL_IDLE_STATUS;
 IPAddress ip_address;
@@ -76,7 +80,7 @@ void setup()
   pub_stat = new ros::Publisher("cube1/status", &status_msg);
   pub_ser = new ros::Publisher("cube1/serial", &serial_msg);
 
-  nh.initNode("192.168.0.103");
+  nh.initNode("192.168.0.102");
   nh.advertise(*pub_stat);
   nh.advertise(*pub_ser);
 }

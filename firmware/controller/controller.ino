@@ -1,7 +1,5 @@
-
 #define USE_WIFICON
 
-#include <ArduinoHardware.h>
 #include <ros.h>
 
 #include <mblocks_wifi/Status.h>
@@ -21,10 +19,8 @@ const int DIGITAL_PIN = 12;
 //////////////////////
 // WiFi Definitions //
 //////////////////////
-//const char WiFiSSID[] = "TP-LINK_9B88A0"; // Sebastian's router
-//const char WiFiPSK[] = "279B88A0";// Sebastian's router
-const char WiFiSSID[] = "TP-LINK_9B7022"; // My Router
-const char WiFiPSK[] = "279B7022"; // My Router
+const char WiFiSSID[] = "TP-LINK_9B88A0";
+const char WiFiPSK[] = "279B88A0";
 
 int status = WL_IDLE_STATUS;
 IPAddress ip_address;
@@ -37,8 +33,8 @@ ros::NodeHandle nh;
 mblocks_wifi::Status status_msg;
 std_msgs::String serial_msg;
 
-ros::Publisher *pub_stat;
-ros::Publisher *pub_ser;
+ros::Publisher pub_stat("cube1/status", &status_msg);
+ros::Publisher pub_ser("cube1/serial", &serial_msg);
 
 //////////////////////
 // Global variables //
@@ -47,7 +43,6 @@ String mac_address;
 String ser_str;
 
 long publisher_timer;
-long reset_timer;
 
 // Main program begins here
 void setup() 
@@ -55,43 +50,19 @@ void setup()
   Serial.begin(115200);
 
   WiFi.mode(WIFI_STA);
+  WiFi.begin(WiFiSSID, WiFiPSK);
 
-  while (status != WL_CONNECTED) {
-    Serial.print("Attempting to connect to SSID: ");
-    Serial.println(WiFiSSID);
-    status = WiFi.begin(WiFiSSID, WiFiPSK);
-
-    delay(5000);
-  }
+  Wire.begin();
   
-  Serial.print("Connected to WiFi: ");
-  Serial.println(WiFiSSID);
+  delay(10000);
   
-  ip_address = WiFi.localIP();
-  Serial.print("IP Address: ");
-  Serial.println(ip_address);
-
-  delay(1000);
-  
-  Wire.begin(2, 14);
-
-  delay(1000);
-  
-  pub_stat = new ros::Publisher("cube1/status", &status_msg);
-  pub_ser = new ros::Publisher("cube1/serial", &serial_msg);
-
-  nh.initNode("192.168.0.102");
-  nh.advertise(*pub_stat);
-  nh.advertise(*pub_ser);
+  nh.initNode("192.168.0.103");
+  nh.advertise(pub_stat);
+  nh.advertise(pub_ser);
 }
 
 void loop()
-{
-  if (millis() > publisher_timer) { 
-    publishStatus();    
-    publisher_timer = millis() + 1000;
-  }
-  
+{ 
   nh.spinOnce();
 }
 
@@ -100,7 +71,7 @@ void publishStatus() {
   for (int i = 1; i <= 6; ++i) {
     status_msg.face_light[i - 1] = readLightSensor(i);
   }
-  pub_stat->publish(&status_msg);
+  pub_stat.publish(&status_msg);
 }
 
 int readLightSensor(int i) {
